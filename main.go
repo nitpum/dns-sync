@@ -47,7 +47,6 @@ func main() {
 	deleteOnlineRecord(api, *argZoneID, toDelete)
 	createOnlineRecord(api, *argZoneID, toInsert)
 	updateOnlineRecord(api, *argZoneID, toUpdate)
-	// toInsert, toUpdate, toDelete := c.getExists(onlineDNS)
 }
 
 func fetchZone(api *cloudflare.API, zoneID string) []cloudflare.DNSRecord {
@@ -113,6 +112,15 @@ func printDNSRecord(onlineRec []cloudflare.DNSRecord) {
 			continue
 		}
 		fmt.Printf("[%s]\t%s \n\t%s \n\tproxy: %t\tpirority: %d\n", r.Type, r.Name, r.Content, r.Proxied, r.Priority)
+	}
+}
+
+func printRecords(rec []record) {
+	for _, r := range rec {
+		if r.Type != "A" && r.Type != "CNAME" {
+			continue
+		}
+		fmt.Printf("[%s]\t%s \n\t%s \n\tproxy: %t\n", r.Type, r.Name, r.Content, r.Proxied)
 	}
 }
 
@@ -193,13 +201,25 @@ func (c *config) compareRecord(onlineRec []cloudflare.DNSRecord) ([]record, []re
 		}
 	}
 
+	needToUpdate := []record{}
+	for _, rec := range toUpdate {
+		if !rec.isNeedUpdate() {
+			continue
+		}
+
+		needToUpdate = append(needToUpdate, rec)
+	}
+
+	toUpdate = needToUpdate
+
 	if *flagVerbose {
 		fmt.Println("\n\nTo Insert")
-		fmt.Println(toInsert)
+		printRecords(toInsert)
 		fmt.Println("\n\nTo Update")
-		fmt.Println(toUpdate)
+		printRecords(toUpdate)
 		fmt.Println("\n\nTo Delete")
 		printDNSRecord(toDelete)
+		fmt.Print("\n")
 	}
 
 	return toInsert, toUpdate, toDelete
@@ -237,10 +257,10 @@ func createOnlineRecord(api *cloudflare.API, zoneID string, record []record) {
 		})
 
 		if err != nil {
-			log.Info().Msgf("\tFailed creating record: %s\n", rec.Name)
+			log.Info().Msgf("Failed creating record: %s\n", rec.Name)
 			log.Logger.Err(err)
 		} else {
-			log.Info().Msgf("\tCreated record: [%s] %s\n", rec.Type, rec.Name)
+			log.Info().Msgf("Created record: [%s] %s\n", rec.Type, rec.Name)
 		}
 	}
 
@@ -264,10 +284,10 @@ func updateOnlineRecord(api *cloudflare.API, zoneID string, record []record) {
 		})
 
 		if err != nil {
-			log.Info().Msgf("\tFailed update record: %s\n", rec.Name)
+			log.Info().Msgf("Failed update record: %s\n", rec.Name)
 			log.Logger.Err(err)
 		} else {
-			log.Info().Msgf("\tUpdated record: [%s] %s\n", rec.Type, rec.Name)
+			log.Info().Msgf("Updated record: [%s] %s\n", rec.Type, rec.Name)
 		}
 	}
 
@@ -281,10 +301,10 @@ func deleteOnlineRecord(api *cloudflare.API, zoneID string, record []cloudflare.
 		err := api.DeleteDNSRecord(zoneID, rec.ID)
 
 		if err != nil {
-			log.Info().Msgf("\tRecord: %s\n", rec.Name)
+			log.Info().Msgf("Record: %s\n", rec.Name)
 			log.Logger.Err(err)
 		} else {
-			log.Info().Msgf("\tDeleted record: [%s] %s\n", rec.Type, rec.Name)
+			log.Info().Msgf("Deleted record: [%s] %s\n", rec.Type, rec.Name)
 		}
 	}
 
