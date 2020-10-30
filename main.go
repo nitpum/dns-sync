@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/cloudflare/cloudflare-go"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/tidwall/gjson"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -35,6 +36,13 @@ type config struct {
 func main() {
 	kingpin.Parse()
 
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	log.Info().Bool("VERBOSE", *flagVerbose)
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	if *flagVerbose {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
+
 	api, err := cloudflare.NewWithAPIToken(*argToken)
 	if err != nil {
 		panic(err)
@@ -43,14 +51,15 @@ func main() {
 	onlineDNS := fetchZone(api, *argZoneID)
 	var c config
 	c.readYAML(*argConfig)
+
 	toInsert, toUpdate, toDelete := c.compareRecord(onlineDNS)
 	deleteOnlineRecord(api, *argZoneID, toDelete)
-	createOnlineRecord(api, *argZoneID, toInsert)
 	updateOnlineRecord(api, *argZoneID, toUpdate)
+	createOnlineRecord(api, *argZoneID, toInsert)
 }
 
 func fetchZone(api *cloudflare.API, zoneID string) []cloudflare.DNSRecord {
-	log.Info().Msg("Fetch zone")
+	log.Info().Msg("Fetching zone")
 
 	recs, err := api.DNSRecords(zoneID, cloudflare.DNSRecord{})
 	if err != nil {
@@ -88,7 +97,7 @@ func readJSON(path string) ([]byte, error) {
 }
 
 func readFile(filePath string) ([]byte, error) {
-	log.Info().Msgf("Read file: %s\n", filePath)
+	log.Info().Msgf("Read file: %s", filePath)
 
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -111,7 +120,8 @@ func printDNSRecord(onlineRec []cloudflare.DNSRecord) {
 		if r.Type != "A" && r.Type != "CNAME" {
 			continue
 		}
-		fmt.Printf("[%s]\t%s \n\t%s \n\tproxy: %t\tpirority: %d\n", r.Type, r.Name, r.Content, r.Proxied, r.Priority)
+
+		log.Debug().Bool("Proxied", r.Proxied).Str("Content", r.Content).Str("Name", r.Name).Str("Type", r.Type).Msg("")
 	}
 }
 
@@ -120,7 +130,7 @@ func printRecords(rec []record) {
 		if r.Type != "A" && r.Type != "CNAME" {
 			continue
 		}
-		fmt.Printf("[%s]\t%s \n\t%s \n\tproxy: %t\n", r.Type, r.Name, r.Content, r.Proxied)
+		log.Debug().Str("Name", r.Name).Str("Type", r.Type).Str("Content", r.Content).Bool("Proxied", r.Proxied).Msg("")
 	}
 }
 
@@ -130,7 +140,7 @@ func (c *config) readYAML(filePath string) *config {
 		panic(err)
 	}
 
-	log.Info().Msgf("Parse yaml: %s\n", filePath)
+	log.Info().Msgf("Parse yaml: %s", filePath)
 	if err := yaml.Unmarshal(data, c); err != nil {
 		panic(err)
 	}
@@ -163,7 +173,7 @@ func (r *record) isMatchConfigRecord(domain string, rec record) bool {
 }
 
 func (c *config) compareRecord(onlineRec []cloudflare.DNSRecord) ([]record, []record, []cloudflare.DNSRecord) {
-	log.Info().Msg("Comparing record")
+	log.Info().Msg("Classify records")
 
 	toUpdate := []record{}
 	toDelete := []cloudflare.DNSRecord{}
@@ -212,15 +222,12 @@ func (c *config) compareRecord(onlineRec []cloudflare.DNSRecord) ([]record, []re
 
 	toUpdate = needToUpdate
 
-	if *flagVerbose {
-		fmt.Println("\n\nTo Insert")
-		printRecords(toInsert)
-		fmt.Println("\n\nTo Update")
-		printRecords(toUpdate)
-		fmt.Println("\n\nTo Delete")
-		printDNSRecord(toDelete)
-		fmt.Print("\n")
-	}
+	log.Info().Msgf("To create (%d)", len(toInsert))
+	printRecords(toInsert)
+	log.Info().Msgf("To update (%d)", len(toInsert))
+	printRecords(toUpdate)
+	log.Info().Msgf("To delete (%d)", len(toInsert))
+	printDNSRecord(toDelete)
 
 	return toInsert, toUpdate, toDelete
 }
@@ -246,6 +253,10 @@ func (c *config) recordRemoveAt(i int) {
 }
 
 func createOnlineRecord(api *cloudflare.API, zoneID string, record []record) {
+	if len(record) <= 0 {
+		return
+	}
+
 	log.Info().Msg("Create online records")
 
 	for _, rec := range record {
@@ -257,8 +268,8 @@ func createOnlineRecord(api *cloudflare.API, zoneID string, record []record) {
 		})
 
 		if err != nil {
-			log.Info().Msgf("Failed creating record: %s\n", rec.Name)
-			log.Logger.Err(err)
+			log.Error().Msgf("Failed creating record: %s\n", rec.Name)
+			log.Error().Err(err)
 		} else {
 			log.Info().Msgf("Created record: [%s] %s\n", rec.Type, rec.Name)
 		}
@@ -268,6 +279,10 @@ func createOnlineRecord(api *cloudflare.API, zoneID string, record []record) {
 }
 
 func updateOnlineRecord(api *cloudflare.API, zoneID string, record []record) {
+	if len(record) <= 0 {
+		return
+	}
+
 	log.Info().Msg("Update online records")
 
 	for _, rec := range record {
@@ -284,8 +299,8 @@ func updateOnlineRecord(api *cloudflare.API, zoneID string, record []record) {
 		})
 
 		if err != nil {
-			log.Info().Msgf("Failed update record: %s\n", rec.Name)
-			log.Logger.Err(err)
+			log.Error().Msgf("Failed update record: %s\n", rec.Name)
+			log.Error().Err(err)
 		} else {
 			log.Info().Msgf("Updated record: [%s] %s\n", rec.Type, rec.Name)
 		}
@@ -295,14 +310,18 @@ func updateOnlineRecord(api *cloudflare.API, zoneID string, record []record) {
 }
 
 func deleteOnlineRecord(api *cloudflare.API, zoneID string, record []cloudflare.DNSRecord) {
+	if len(record) <= 0 {
+		return
+	}
+
 	log.Info().Msg("Delete online records")
 
 	for _, rec := range record {
 		err := api.DeleteDNSRecord(zoneID, rec.ID)
 
 		if err != nil {
-			log.Info().Msgf("Record: %s\n", rec.Name)
-			log.Logger.Err(err)
+			log.Error().Msgf("Record: %s\n", rec.Name)
+			log.Error().Err(err)
 		} else {
 			log.Info().Msgf("Deleted record: [%s] %s\n", rec.Type, rec.Name)
 		}
