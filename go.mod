@@ -1,4 +1,4 @@
-module gitlab.com/nitpum/nitpum-dns-sync
+module gitlab.com/nitpum/dns-sync
 
 go 1.15
 
