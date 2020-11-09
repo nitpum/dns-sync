@@ -269,7 +269,7 @@ func createOnlineRecord(api *cloudflare.API, zoneID string, record []record) {
 
 		if err != nil {
 			log.Error().Msgf("Failed creating record: %s\n", rec.Name)
-			log.Error().Err(err)
+			log.Fatal().Err(err)
 		} else {
 			log.Info().Msgf("Created record: [%s] %s\n", rec.Type, rec.Name)
 		}
@@ -300,7 +300,7 @@ func updateOnlineRecord(api *cloudflare.API, zoneID string, record []record) {
 
 		if err != nil {
 			log.Error().Msgf("Failed update record: %s\n", rec.Name)
-			log.Error().Err(err)
+			log.Fatal().Err(err)
 		} else {
 			log.Info().Msgf("Updated record: [%s] %s\n", rec.Type, rec.Name)
 		}
@@ -321,7 +321,7 @@ func deleteOnlineRecord(api *cloudflare.API, zoneID string, record []cloudflare.
 
 		if err != nil {
 			log.Error().Msgf("Record: %s\n", rec.Name)
-			log.Error().Err(err)
+			log.Fatal().Err(err)
 		} else {
 			log.Info().Msgf("Deleted record: [%s] %s\n", rec.Type, rec.Name)
 		}
