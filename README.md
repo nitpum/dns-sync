@@ -4,6 +4,9 @@ I like an idea of infrastructure as a code.
 
 This is a Cloudflare DNS as a code solution. Store DNS records in yaml file, keep tracking what's change in git and let CI/CD sync it for you
 
+- DNS Token can be create at [Cloudflare API Token](https://dash.cloudflare.com/profile/api-tokens) (My profile > API Tokens > Create Token)
+- DNS Zone ID can be found at Websites > Overview > API (Right side) > Zone ID
+
 ## Usage
 
 ### Github Action
