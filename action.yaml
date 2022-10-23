@@ -8,7 +8,7 @@ inputs:
     description: 'DNS Zone ID'
     required: true
   config-path:
-    required: true
+    required: false
     default: 'config.yaml'
 runs:
   using: 'docker'
