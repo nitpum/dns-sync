@@ -14,4 +14,7 @@ runs:
   using: 'docker'
   image: 'Dockerfile'
   args:
-    - dns-sync ${{ inputs.cloudflare-token }} ${{ inputs.dns-zone-id }} ${{ inputs.config-path }} --verbose
+    - ${{ inputs.cloudflare-token }}
+    - ${{ inputs.dns-zone-id }}
+    - ${{ inputs.config-path }}
+    - --verbose
