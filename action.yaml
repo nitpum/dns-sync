@@ -1,0 +1,17 @@
+name: 'DNS Sync'
+description: 'Update cloudflare DNS via git'
+inputs:
+  cloudflare-token:
+    description: 'Cloudflare api token'
+    required: true
+  dns-zone-id:
+    description: 'DNS Zone ID'
+    required: true
+  config-path:
+    required: true
+    default: 'config.yaml'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - dns-sync ${{ inputs.cloudflare-token }} ${{ inputs.dns-zone-id }} ${{ inputs.config-path }} --verbose
