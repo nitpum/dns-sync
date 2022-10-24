@@ -1,0 +1,21 @@
+name: Sync DNS
+
+on:
+  push:
+    branches: ['main']
+
+jobs:
+  sync-dns:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Sync DNS
+        uses: nitpum/dns-sync@main
+        with:
+          cloudflare-token: ${{ secrets.CLOUDFLARE_TOKEN }}
+          dns-zone-id: ${{ secrets.DNS_ZONE_ID }}
